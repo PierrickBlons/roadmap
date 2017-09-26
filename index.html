@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Roadmap</title>
+    <script src="sdk/scripts/VSS.SDK.js"></script>
+</head>
+<body>
+    <script type="text/javascript">VSS.init();</script>
+    <h1>Hello Roadmap</h1>
+    <div id="projectId"></div>
+    <script type="text/javascript">
+        VSS.require(["VSS/Service", "TFS/Work/RestClient", "TFS/WorkItemTracking/RestClient"],  
+            function (VSS_Service, TFS_Work_WebApi, TFS_Wit_WebApi) {
+                let projectId = VSS.getWebContext().project.id;
+
+                let workClient = VSS_Service.getCollectionClient(TFS_Work_WebApi.WorkHttpClient);
+
+                //let teamId = VSS.getWebContext().team.id;
+                //TODO: test with project
+                //let teamContext = { teamId: VSS.getWebContext().project.id }
+                let iterations = workClient.getTeamIterations(VSS.getWebContext().project).then(
+                    (result) => {
+                        console.log(result);
+                    }
+                );
+
+                let witClient = VSS_Service.getCollectionClient(TFS_Wit_WebApi.WorkItemTrackingHttpClient);
+                
+                let query = {
+                    query: "SELECT [System.Id] FROM WorkItem WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Completed', 'Resolved', 'Removed', 'Done')"
+                };
+                
+                witClient.queryByWiql(query, projectId).then(
+                    (result) => {
+                        var openWorkItems = result.workItems.map(function (wi) { return wi.id });
+
+                    var fields = [
+                        "System.Title", 
+                        "System.State", 
+                        "Microsoft.VSTS.Common.StateChangeDate", 
+                        "System.AssignedTo",
+                        "Microsoft.VSTS.Scheduling.StoryPoint"];
+
+                    witClient.getWorkItems(openWorkItems, fields).then(
+                            function (workItems) {
+                                let div = document.getElementById("projectId");
+                                div.textContent = 'Effort total: ' + workItems.reduce((acc, wi) => acc + wi.effort);
+                            });
+                });
+            }
+        );
+    </script>
+    <script type="text/javascript">VSS.notifyLoadSucceeded();</script>
+</body>
+</html>
